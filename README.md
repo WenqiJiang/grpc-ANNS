@@ -46,3 +46,14 @@ Run examples, in one terminal run server, in another run client:
 ./greeter_server # terminal 1
 ./greeter_client # terminal 2
 ```
+
+## Python installation
+
+https://grpc.io/docs/languages/python/quickstart/
+
+```
+conda create -n grpc python=3.7
+conda activate grpc
+conda install grpcio
+conda install grpcio-tools
+```
