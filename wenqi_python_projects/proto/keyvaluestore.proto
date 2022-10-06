@@ -1,0 +1,41 @@
+// Protocol buffer data types: https://developers.google.com/protocol-buffers/docs/proto3
+
+syntax = "proto3";
+
+package keyvaluestore;
+
+// A simple key-value storage service
+service KeyValueStore {
+  // Provides a value for each key request
+  rpc GetValues (LookupRequest) returns (LookupResponse) {}
+
+  // 
+  rpc InsertValues (KVPair) returns (ResponseCode) {}
+}
+
+// each field in the message definition has a unique number. 
+// These field numbers are used to identify your fields in the message binary format, 
+// and should not be changed once your message type is in use. 
+// Note that field numbers in the range 1 through 15 take one byte to encode, 
+// including the field number and the field's type (you can find out more about this in Protocol Buffer Encoding). 
+// Field numbers in the range 16 through 2047 take two bytes. 
+
+// The request message containing the key
+message LookupRequest {
+  int64 key = 1;
+}
+
+// The response message containing the value associated with the key
+message LookupResponse {
+  float value = 1;
+}
+
+// 0 = normal, otherwise error codes
+message ResponseCode {
+  int32 code = 1;
+}
+
+message KVPair {
+  int64 key = 1;
+  float value = 2;
+}
