@@ -24,6 +24,14 @@ import ANN_pb2_grpc
 import numpy as np
 import faiss
 
+import argparse 
+parser = argparse.ArgumentParser()
+parser.add_argument('--server_IP', type=str, default='127.0.0.1', help="server") # alveo-build-01 10.253.74.5
+parser.add_argument('--server_port', type=str, default='8888')
+
+args = parser.parse_args()
+server_IP = args.server_IP
+server_port = args.server_port
 
 def run():
     # NOTE(gRPC Python Team): .close() is possible on a channel and should be
@@ -40,7 +48,7 @@ def run():
     topK = 100
     nprobe = 1
 
-    with grpc.insecure_channel('localhost:50051') as channel:
+    with grpc.insecure_channel('{}:{}'.format(server_IP, server_port)) as channel:
 
         stub = ANN_pb2_grpc.ANNStub(channel) # proto service name + Stub
 

@@ -24,6 +24,13 @@ import ANN_pb2_grpc
 import numpy as np
 import faiss
 
+import argparse 
+parser = argparse.ArgumentParser()
+parser.add_argument('--server_port', type=str, default='8888')
+
+args = parser.parse_args()
+server_port = args.server_port
+
 class ANN(ANN_pb2_grpc.ANNServicer): # Service name  + Servicer
 
     print("Initiating index...")
@@ -48,7 +55,7 @@ class ANN(ANN_pb2_grpc.ANNServicer): # Service name  + Servicer
         pass
 
     # method same should be consistent with .proto file
-    def Search(self, request, context):
+    def Search(self, request):
 
         # interpret request
         nq = request.nq
@@ -73,7 +80,7 @@ class ANN(ANN_pb2_grpc.ANNServicer): # Service name  + Servicer
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     ANN_pb2_grpc.add_ANNServicer_to_server(ANN(), server)
-    server.add_insecure_port('[::]:50051')
+    server.add_insecure_port('[::]:{}'.format(server_port))
     server.start()
     server.wait_for_termination()
 

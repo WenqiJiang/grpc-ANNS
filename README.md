@@ -62,7 +62,7 @@ To generate the needed gRPC py files, run:
 
 ```
 # make sure the proto's include directory (-I) is correct
-python -m grpc_tools.protoc -I../proto --python_out=. --grpc_python_out=. helloworld.proto
+python -m grpc_tools.protoc -I../protos --python_out=. --grpc_python_out=. helloworld.proto
 ```
 
 This will generate 'helloworld_pb2.py' (for protocol buffer) and 'helloworld_pb2_grpc.py' (for grpc), but these can be adjusted in the proto file ('package helloworld;'). In the client and server code:
