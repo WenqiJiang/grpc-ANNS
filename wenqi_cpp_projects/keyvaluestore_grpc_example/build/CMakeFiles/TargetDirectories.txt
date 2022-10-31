@@ -1,5 +1,0 @@
-/mnt/scratch/wenqi/grpc-ANNS/wenqi_cpp_projects/keyvaluestore_grpc_example/build/CMakeFiles/kvs_grpc_proto.dir
-/mnt/scratch/wenqi/grpc-ANNS/wenqi_cpp_projects/keyvaluestore_grpc_example/build/CMakeFiles/client.dir
-/mnt/scratch/wenqi/grpc-ANNS/wenqi_cpp_projects/keyvaluestore_grpc_example/build/CMakeFiles/server.dir
-/mnt/scratch/wenqi/grpc-ANNS/wenqi_cpp_projects/keyvaluestore_grpc_example/build/CMakeFiles/edit_cache.dir
-/mnt/scratch/wenqi/grpc-ANNS/wenqi_cpp_projects/keyvaluestore_grpc_example/build/CMakeFiles/rebuild_cache.dir
