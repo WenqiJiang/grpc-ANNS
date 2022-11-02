@@ -9,6 +9,7 @@ e.g.,:
 
  */
 
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -131,11 +132,16 @@ int main(int argc, char** argv) {
   // Spawn reader thread that loops indefinitely
   std::thread thread_ = std::thread(&GreeterClient::AsyncCompleteRpc, &greeter);
 
-  for (int i = 0; i < 100; i++) {
+  int n_iter = 100;
+  auto start = std::chrono::high_resolution_clock::now();
+  for (int i = 0; i < n_iter; i++) {
     std::string user("world " + std::to_string(i));
     greeter.SayHello(user);  // The actual RPC call!
   }
-
+  auto finish = std::chrono::high_resolution_clock::now();
+  std::cout << "SayHello for " << n_iter << " iterations took "
+            << std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count()
+            << " microseconds" << std::endl;
   std::cout << "Press control-c to quit" << std::endl << std::endl;
   thread_.join();  // blocks forever
 
