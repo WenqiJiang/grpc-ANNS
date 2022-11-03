@@ -1,0 +1,32 @@
+// Protocol buffer data types: https://developers.google.com/protocol-buffers/docs/proto3
+
+syntax = "proto3";
+
+package ANN;
+
+// A simple key-value storage service
+service ANNService {
+  // Provides a value for each key request
+  rpc Search (SearchRequest) returns (SearchResponse) {}
+}
+
+// each field in the message definition has a unique number. 
+// These field numbers are used to identify your fields in the message binary format, 
+// and should not be changed once your message type is in use. 
+// Note that field numbers in the range 1 through 15 take one byte to encode, 
+// including the field number and the field's type (you can find out more about this in Protocol Buffer Encoding). 
+// Field numbers in the range 16 through 2047 take two bytes. 
+
+message SearchRequest {
+  int32 nq = 1; // num query
+  int32 topk = 2;   // topK results
+  int32 nprobe = 3; // number of cells to scan
+  repeated int64 ivf_list_ids = 4; // the IVF list IDs 
+  repeated float xq = 5; // query vectors, can contain multiple vectors
+}
+
+// The response message containing the value associated with the key
+message SearchResponse {
+  repeated int64 results_id = 1;    // size = topK * num_query
+  repeated float results_dist = 2;  // size = topK * num_query
+}

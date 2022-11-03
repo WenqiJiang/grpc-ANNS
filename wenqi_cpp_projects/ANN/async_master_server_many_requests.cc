@@ -1,11 +1,11 @@
 /*
 Usage:
 
-./greeter_async_client_many_requests <optional server_IP:server_port>
+./async_master_server_many_requests <optional server_IP:server_port>
 
 e.g.,: 
 
-./greeter_async_client_many_requests 127.0.0.1:8888
+./async_master_server_many_requests 127.0.0.1:8888
 
  */
 
@@ -19,9 +19,9 @@ e.g.,:
 #include <grpcpp/grpcpp.h>
 
 #ifdef BAZEL_BUILD
-#include "examples/protos/helloworld.grpc.pb.h"
+#include "examples/protos/ANN.grpc.pb.h"
 #else
-#include "helloworld.grpc.pb.h"
+#include "ANN.grpc.pb.h"
 #endif
 
 using grpc::Channel;
@@ -29,24 +29,24 @@ using grpc::ClientAsyncResponseReader;
 using grpc::ClientContext;
 using grpc::CompletionQueue;
 using grpc::Status;
-using helloworld::Greeter;
-using helloworld::HelloReply;
-using helloworld::HelloRequest;
+using ANN::ANNService;
+using ANN::SearchRequest;
+using ANN::SearchResponse;
 
 // using grpc::grpc_channel_args;
 
-class GreeterClient {
+class SearchClient {
  public:
-  // explicit GreeterClient() {}
+  // explicit SearchClient() {}
 
 
-  // explicit GreeterClient(std::string IP_port) : finished_request_num(0) {
-  explicit GreeterClient(std::shared_ptr<Channel> channel) : finished_request_num(0) {
+  // explicit SearchClient(std::string IP_port) : finished_request_num(0) {
+  explicit SearchClient(std::shared_ptr<Channel> channel) : finished_request_num(0) {
         // std::shared_ptr<Channel> channel = grpc::CreateChannel(
         //     IP_port, grpc::InsecureChannelCredentials());
         std::cout << "Use count for the channel shared_ptr:" << channel.use_count() << std::endl;
         // channel->SetChannelArgs();
-        stub_ = Greeter::NewStub(channel);
+        stub_ = ANNService::NewStub(channel);
       }
 
   void SetConcurrency(int max_concurrency_in) {
@@ -55,22 +55,42 @@ class GreeterClient {
   }
 
   // Assembles the client's payload and sends it to the server.
-  void SayHello(const std::string& user, int n_iter) {
+  void Search(int n_iter) {
 
     for (int i = 0; i < n_iter; i++) {
       // Data we are sending to the server.
-      HelloRequest request;
-      request.set_name(user);
+      SearchRequest request;
+      // message SearchRequest {
+      //   int32 nq = 1; // num query
+      //   int32 topK = 2;   // topK results
+      //   int32 nprobe = 3; // number of cells to scan
+      //   repeated int64 ivf_list_ids = 4; // the IVF list IDs 
+      //   repeated float xq = 5; // query vectors, can contain multiple vectors
+      // }
+      int nprobe = 2;
+      int ivf_list_len = 2;
+      long ivf_list_ids[ivf_list_len] = {100, 101};
+      int D = 2;
+      float xq[D] = {1.2, 3.4};
+      request.set_nq(int(1));
+      request.set_topk(int(100));
+      request.set_nprobe(nprobe);
+      for (long id : ivf_list_ids) {
+        request.add_ivf_list_ids(id);
+      }
+      for (float element : xq) {
+        request.add_xq(element);
+      }
 
       // Call object to store rpc data
       AsyncClientCall* call = new AsyncClientCall;
 
-      // stub_->PrepareAsyncSayHello() creates an RPC object, returning
+      // stub_->PrepareAsyncSearch() creates an RPC object, returning
       // an instance to store in "call" but does not actually start the RPC
       // Because we are using the asynchronous API, we need to hold on to
       // the "call" instance in order to get updates on the ongoing RPC.
       call->response_reader =
-          stub_->PrepareAsyncSayHello(&call->context, request, &cq_);
+          stub_->PrepareAsyncSearch(&call->context, request, &cq_);
 
       // StartCall initiates the RPC call
       call->response_reader->StartCall();
@@ -103,7 +123,7 @@ class GreeterClient {
       GPR_ASSERT(ok);
 
       if (call->status.ok()) {
-        // std::cout << "Greeter received: " << call->reply.message() << std::endl;
+        std::cout << "Received results" << std::endl;
       } else {
         std::cout << "RPC failed" << std::endl;
       }
@@ -118,7 +138,7 @@ class GreeterClient {
   // struct for keeping state and data information
   struct AsyncClientCall {
     // Container for the data we expect from the server.
-    HelloReply reply;
+    SearchResponse reply;
 
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
@@ -127,12 +147,12 @@ class GreeterClient {
     // Storage for the status of the RPC upon completion.
     Status status;
 
-    std::unique_ptr<ClientAsyncResponseReader<HelloReply>> response_reader;
+    std::unique_ptr<ClientAsyncResponseReader<SearchResponse>> response_reader;
   };
 
   // Out of the passed in Channel comes the stub, stored here, our view of the
   // server's exposed services.
-  std::unique_ptr<Greeter::Stub> stub_;
+  std::unique_ptr<ANNService::Stub> stub_;
 
   // The producer-consumer queue we use to communicate asynchronously with the
   // gRPC runtime.
@@ -179,29 +199,28 @@ int main(int argc, char** argv) {
 
   }
       
-  // std::vector<GreeterClient> greeters(num_clients);
+  // std::vector<SearchClient> search_clients(num_clients);
   // double pointer
-  GreeterClient** greeters = new GreeterClient* [num_clients];
+  SearchClient** search_clients = new SearchClient* [num_clients];
   for (int i = 0; i < num_clients; i++) {
-    greeters[i] = new GreeterClient(channel[i]);
-    greeters[i]->SetConcurrency(max_concurrency);
+    search_clients[i] = new SearchClient(channel[i]);
+    search_clients[i]->SetConcurrency(max_concurrency);
   }
 
   // for (int i = 0; i < num_clients; i++) {
-  //   threads_collect[i] std::thread(&GreeterClient::AsyncCompleteRpc, &greeters[i], n_iter);
+  //   threads_collect[i] std::thread(&SearchClient::AsyncCompleteRpc, &search_clients[i], n_iter);
   // }
 
   std::thread threads_collect[num_clients];
   for (int i = 0; i < num_clients; i++) {
-    threads_collect[i] = std::thread(&GreeterClient::AsyncCompleteRpc, greeters[i], n_iter);
+    threads_collect[i] = std::thread(&SearchClient::AsyncCompleteRpc, search_clients[i], n_iter);
   }
 
   auto start = std::chrono::high_resolution_clock::now();
 
   std::thread threads_request[num_clients];
   for (int i = 0; i < num_clients; i++) {
-    std::string user("world " + std::to_string(i));
-    threads_request[i] = std::thread(&GreeterClient::SayHello, greeters[i], user, n_iter); 
+    threads_request[i] = std::thread(&SearchClient::Search, search_clients[i], n_iter); 
   }
 
   for (int i = 0; i < num_clients; i++) {
@@ -211,7 +230,7 @@ int main(int argc, char** argv) {
 
   auto finish = std::chrono::high_resolution_clock::now();
   double time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
-  std::cout << "SayHello for " << n_iter << " iterations took "
+  std::cout << "Search for " << n_iter << " iterations took "
             << time_ms << " milliseconds" << std::endl;
   std::cout << "QPS: " << float(n_iter) * num_clients / (time_ms / 1000) << std::endl;
 

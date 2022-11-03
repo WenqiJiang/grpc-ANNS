@@ -1,11 +1,11 @@
 /*
 Usage:
 
-./greeter_async_client_multi_servers <optional server_IP 0:server_port 0> <optional server_IP 1:server_port 1> ...
+./async_master_servers_multiple_connections <optional server_IP 0:server_port 0> <optional server_IP 1:server_port 1> ...
 
 e.g.,: 
 
-./greeter_async_client_multi_servers 127.0.0.1:8888 127.0.0.1:8889 
+./async_master_servers_multiple_connections 127.0.0.1:8888 127.0.0.1:8889 
 
  */
 
@@ -20,9 +20,9 @@ e.g.,:
 #include <grpcpp/grpcpp.h>
 
 #ifdef BAZEL_BUILD
-#include "examples/protos/helloworld.grpc.pb.h"
+#include "examples/protos/ANN.grpc.pb.h"
 #else
-#include "helloworld.grpc.pb.h"
+#include "ANN.grpc.pb.h"
 #endif
 
 using grpc::Channel;
@@ -30,15 +30,14 @@ using grpc::ClientAsyncResponseReader;
 using grpc::ClientContext;
 using grpc::CompletionQueue;
 using grpc::Status;
-using helloworld::Greeter;
-using helloworld::HelloReply;
-using helloworld::HelloRequest;
+using ANN::ANNService;
+using ANN::SearchRequest;
+using ANN::SearchResponse;
 
-class GreeterClient {
+class SearchClient {
  public:
-  explicit GreeterClient() {}
 
-  explicit GreeterClient(
+  explicit SearchClient(
       int num_servers, std::string IP_port[]) :
       // int num_servers, std::shared_ptr<Channel> channels[]) :
         num_servers(num_servers) {
@@ -51,20 +50,20 @@ class GreeterClient {
         }
 
         // build stubs
-        stubs_ = std::unique_ptr<std::unique_ptr<Greeter::Stub>[]>(
-          new std::unique_ptr<Greeter::Stub>[num_servers]);
+        stubs_ = std::unique_ptr<std::unique_ptr<ANNService::Stub>[]>(
+          new std::unique_ptr<ANNService::Stub>[num_servers]);
         for (int i = 0; i < num_servers; i++) {
-          stubs_[i] = Greeter::NewStub(channels[i]);
+          stubs_[i] = ANNService::NewStub(channels[i]);
         }
       }
 
-  void StartSayHello() {
+  void StartSearch() {
     start_ = true; 
   }
 
   // Assembles the client's payload, sends it and presents the response back
   // from the server.
-  void SayHello(const std::string& user, int n_iter=1000) {
+  void Search(const std::string& user, int n_iter=1000) {
 
     while (!start_) {
 
@@ -105,15 +104,28 @@ class GreeterClient {
     // calls[i]->context = ClientContext();
     // calls[i]->status = Status();
         
+        int nprobe = 2;
+        int ivf_list_len = 2;
+        long ivf_list_ids[ivf_list_len] = {100, 101};
+        int D = 2;
+        float xq[D] = {1.2, 3.4};
+        calls[i]->request.set_nq(int(1));
+        calls[i]->request.set_topk(int(100));
+        calls[i]->request.set_nprobe(nprobe);
+        for (long id : ivf_list_ids) {
+          calls[i]->request.add_ivf_list_ids(id);
+        }
+        for (float element : xq) {
+          calls[i]->request.add_xq(element);
+        }
 
-        calls[i]->request.set_name(std::string(user) + std::to_string(i));
         calls[i]->call_id = i;
 
-        // stub_->PrepareAsyncSayHello() creates an RPC object, returning
+        // stub_->PrepareAsyncSearch() creates an RPC object, returning
         // an instance to store in "call" but does not actually start the RPC
         // Because we are using the asynchronous API, we need to hold on to
         // the "call" instance in order to get updates on the ongoing RPC.
-        calls[i]->response_reader = stubs_[i]->PrepareAsyncSayHello(
+        calls[i]->response_reader = stubs_[i]->PrepareAsyncSearch(
           &calls[i]->context, calls[i]->request, &cq);
       }
       t1 = std::chrono::high_resolution_clock::now();
@@ -155,9 +167,9 @@ class GreeterClient {
         int call_id = calls[i]->call_id;
 
         if (call->status.ok()) {
-          return_msgs[call_id] = call->reply.message();
+          std::cout << "Received results" << std::endl;
         } else {
-          return_msgs[call_id] = "RPC failed";
+          std::cout << "RPC failed" << std::endl;
         }
         // std::cout << call->reply.message() << std::endl;
       }
@@ -166,7 +178,7 @@ class GreeterClient {
     }
     
     auto finish = std::chrono::high_resolution_clock::now();
-    std::cout << "SayHello on " << num_servers << "servers for " << n_iter << " iterations took "
+    std::cout << "Search on " << num_servers << "servers for " << n_iter << " iterations took "
               << std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count()
               << " microseconds" << std::endl;
 
@@ -176,9 +188,6 @@ class GreeterClient {
       "Time (microseconds) on part 3: " << profile[3] << std::endl << 
       "Time (microseconds) on part 4: " << profile[4] << std::endl;
 
-    for (int i = 0; i < num_servers; i++) {
-      std::cout << "Greeter received: " << return_msgs[i] << std::endl;
-    }
   }
 
  private:
@@ -187,16 +196,16 @@ class GreeterClient {
   int num_servers;
   // Wenqi: cannot use stubs_[num_servers] as sizeof(classname) must be a constant: 
   // https://stackoverflow.com/questions/26198052/how-do-i-initialize-a-variable-size-array-in-a-c-class
-  std::unique_ptr<std::unique_ptr<Greeter::Stub>[]> stubs_;
+  std::unique_ptr<std::unique_ptr<ANNService::Stub>[]> stubs_;
   bool start_;
 
   // struct for keeping state and data information for a single RPC call
   struct AsyncClientCall {
     // Data we are sending to the server.
-    HelloRequest request;
+    SearchRequest request;
 
     // Container for the data we expect from the server.
-    HelloReply reply;
+    SearchResponse reply;
 
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
@@ -209,11 +218,11 @@ class GreeterClient {
     //   which server the call is asking for
     int call_id;
 
-    // stub_->PrepareAsyncSayHello() creates an RPC object, returning
+    // stub_->PrepareAsyncSearch() creates an RPC object, returning
     // an instance to store in "call" but does not actually start the RPC
     // Because we are using the asynchronous API, we need to hold on to
     // the "call" instance in order to get updates on the ongoing RPC.
-    std::unique_ptr<ClientAsyncResponseReader<HelloReply>> response_reader;
+    std::unique_ptr<ClientAsyncResponseReader<SearchResponse>> response_reader;
   };
 };
 
@@ -239,23 +248,23 @@ int main(int argc, char** argv) {
     std::cout << "arg server IP and port: " << IP_port[i] << std::endl;
   }
 
-  // GreeterClient greeters[num_clients];
-  std::vector<GreeterClient> greeters(num_clients);
-  // GreeterClient* greeters = new GreeterClient[num_clients];
+  // SearchClient search_clients[num_clients];
+  std::vector<SearchClient> search_clients;
+  // SearchClient* search_clients = new SearchClient[num_clients];
   for (int i = 0; i < num_clients; i++) {
-    greeters[i] = GreeterClient(num_servers, IP_port);
+    search_clients.push_back(SearchClient(num_servers, IP_port));
   }
-  // GreeterClient greeter(num_servers, channels);
+  // SearchClient greeter(num_servers, channels);
   std::string user("world");
   int n_iter = 1000;
   std::thread threads_[num_clients];
   for (int i = 0; i < num_clients; i++) {
-    threads_[i] = std::thread(&GreeterClient::SayHello, &greeters[i], user, n_iter); 
+    threads_[i] = std::thread(&SearchClient::Search, &search_clients[i], user, n_iter); 
   }
 
   auto start = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < num_clients; i++) {
-    greeters[i].StartSayHello();
+    search_clients[i].StartSearch();
   }
   for (int i = 0; i < num_clients; i++) {
     threads_[i].join();
